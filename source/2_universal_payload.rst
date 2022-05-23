@@ -1980,6 +1980,357 @@ https://github.com/tianocore/edk2/blob/master/MdePkg/Include/Pi/PiHob.h::
     //
   } EFI_HOB_MEMORY_ALLOCATION;
 
+Future Interface
+----------------------
+
+Currently, we are using HobList as Universal Payload Interface. However, Hoblist has some limitations as below:
+
+1)	Hob is an implementation of Edk2, and defined in PI spec. This may be not friendly to non-Edk2 developers.
+
+2)	Some hob structures contain fields which are only meaningful for Edk2 DXE phase. These fields are confusing.
+
+3)	Hob can contain not only the data transferred to the next phase but also the data used in the current phase. There is no clear boundary of them.
+
+4)	Not a self-describing data format.
+
+In the future, we plan to use another data format CBOR to replace Hob.
+
+CBOR encoded data
+~~~~~~~~~~~~~~~~~~~
+
+The bootloader should build a CBOR encoded data and pass the CBOR encoded data header
+to payload when passing control to payload.
+Concise Binary Object Representation (CBOR) is a binary data serialization Json-like
+format defined in the https://www.rfc-editor.org/rfc/rfc8949.html
+
+To be self-describing, the CBOR encoded data itself is a CBOR map type containing
+<Key, Value> pairs. The map is called CBOR root map in this document.
+Some of the values called basic type is directly stored into the root map, and the
+key and value type are stored in key and type column of the below table.
+Some of the values called special type need to be stores in a submap of an array,
+because there may be multiple instances of the values. For these kinds of value,
+The key for array is stores in the key column, and the key and type for the value
+are stored in in Submap key and type column. For example, the value in root map
+with key “UplExtraData” is a CBOR format array, and the array contains one or more elements.
+Each element is a CBOR format map, and contains some <Key, value> pairs, and the Key can
+be "Identifier", "Base" and "Size" according to the below table.
+
+The below table shows what information can be contained in CBOR encoded data. 
+The range of Unsigned Integer is from 0 to 2^64 - 1.
+
+**Fields inside CBOR encoded data**
+
++------------------------------------+------------------------+-------------------+
+| Key                                | Submap Key             | Type              |
++====================================+========================+===================+
+| SerialPortUseMmio                  |                        | BOOLEAN           |
++------------------------------------+------------------------+-------------------+
+| SerialPortRegisterStride           |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| SerialPortBaudRate                 |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| SerialPortRegisterBase             |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| RootBridgeResourceAssigned         |                        | BOOLEAN           |
++------------------------------------+------------------------+-------------------+
+| SmBiosTableEntryPoint              |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| AcpiTableRsdp                      |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| GraphicsFrameBufferBase            |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| GraphicsFrameBufferSize            |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| GraphicsHorizontalResolution       |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| GraphicsVerticalResolution         |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| GraphicsPixelFormat                |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| GraphicsPixelInformationRedMask    |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| GraphicsPixelInformationGreenMask  |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| GraphicsPixelInformationBlueMask   |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| GraphicsVendorId                   |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| GraphicsDeviceId                   |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| GraphicsSubsystemVendorId          |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| GraphicsSubsystemId                |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| GraphicsRevisionId                 |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| GraphicsBarIndex                   |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| MemorySpace                        |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| IoSpace                            |                        | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| UplExtraData                       | Identifier             | STRING            |
++                                    +------------------------+-------------------+
+|                                    | Base                   | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | Size                   | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| RootBridgeInfo                     | Segment                | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | Supports               | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | Attribute              | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | DmaAbove4G             | BOOLEAN           |
++                                    +------------------------+-------------------+
+|                                    | NoExtendedConfigSpace  | BOOLEAN           |
++                                    +------------------------+-------------------+
+|                                    | AllocationAttributes   | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | BusBase                | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | BusLimit               | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | BusTranslation         | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | IoBase                 | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | IoLimit                | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | IoTranslation          | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | MemBase                | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | MemLimit               | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | MemTranslation         | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | MemAbove4GBase         | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | MemAbove4GLimit        | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | MemAbove4GTranslation  | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | PMemBase               | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | PMemLimit              | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | PMemTranslation        | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | PMemAbove4GBase        | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | PMemAbove4GLimit       | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | PMemAbove4GTranslation | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | HID                    | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | UID                    | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| Resource                           | Owner                  | STRING            |
++                                    +------------------------+-------------------+
+|                                    | Type                   | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | Attribute              | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | Base                   | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | Length                 | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| ResourceAllocation                 | Name                   | STRING            |
++                                    +------------------------+-------------------+
+|                                    | Base                   | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | Length                 | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | Type                   | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+| MemoryMap                          | Base                   | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | NumberOfPages          | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | Type                   | Unsigned Integer  |
++                                    +------------------------+-------------------+
+|                                    | Attribute              | Unsigned Integer  |
++------------------------------------+------------------------+-------------------+
+
+
+Here is the description of the fields.
+
+``SerialPortUseMmio``
+
+Indicates the 16550 serial port registers are in MMIO space, or in I/O space.
+
+``SerialPortRegisterStride``
+
+Indicates the number of bytes between registers.
+
+``SerialPortBaudRate``
+
+Baud rate for the 16550 compatible serial port.
+
+It could be 921600, 460800, 230400, 115200, 57600, 38400, 19200,
+9600, 7200, 4800, 3600, 2400, 2000, 1800, 1200, 600, 300, 150, 134,
+110, 75, 50
+
+Set to 0 to use the default baud rate 115200.
+
+``SerialPortRegisterBase``
+
+Base address of 16550 serial port registers in MMIO or I/O space.
+
+``RootBridgeResourceAssigned``
+
+Bus/IO/MMIO resources for all root bridges have been assigned when it's TRUE.
+
+``SmBiosTableEntryPoint``
+
+Points to the SMBIOS table
+
+``AcpiTableRsdp``
+
+Point to the ACPI RSDP table. The ACPI table need follow ACPI specification version 2.0 or above.
+
+``GraphicsFrameBufferBase`` and ``GraphicsFrameBufferSize``
+
+Provide graphic frame buffer's base and size
+
+``GraphicsHorizontalResolution`` and ``GraphicsVerticalResolution``
+
+The size of video screen in pixels in the X dimension and Y dimension.
+
+``GraphicsPixelFormat``
+
+Enumeration that defines the physical format of the pixel. A value of PixelBltOnly
+implies that a linear frame buffer is not available for this mode. More information
+can be seen at EFI_GRAPHICS_PIXEL_FORMAT definition in https://github.com/tianocore/edk2/blob/master/MdePkg/Include/Protocol/GraphicsOutput.h
+
+``GraphicsPixelInformationRedMask``, ``GraphicsPixelInformationGreenMask`` and ``GraphicsPixelInformationBlueMask``
+
+A bit being set defines what bits are used for what purpose such as Red, Green, Blue, or Reserved.
+
+
+``GraphicsVendorId``, ``GraphicsDeviceId``, ``GraphicsSubsystemVendorId``, ``GraphicsSubsystemId``, ``GraphicsRevisionId`` and ``GraphicsBarIndex``
+
+Define the Graphics device hardware information.
+
+``MemorySpace`` and ``IoSpace``
+
+Provide information about the address space and I/O space
+
+``UplExtraData``
+
+Contains one or more extra binaries. Each binary has its ``Identifier``, ``Base`` and ``Size``
+
+``RootBridgeInfo``
+
+Contains one or more root bridge information. For each root bridge, it contains below fields.
+
+  | ``Segment``
+  | 
+  | Segment number of the root bridge.
+  | 
+  | ``Supports``
+  | 
+  | Supported attributes. Refer to EFI_PCI_ATTRIBUTE_xxx used by GetAttributes() and SetAttributes() in EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL
+  | defined in PI Specification.
+  | 
+  | ``Attributes``
+  | 
+  | Initial attributes. Refer to EFI_PCI_ATTRIBUTE_xxx used by GetAttributes() and SetAttributes() in EFI_PCI_ROOT_BRIDGE_IO_PROTOCOL
+  | defined in PI Specification.
+  | 
+  | ``DmaAbove4G``
+  | 
+  | Root bridge supports DMA above 4GB memory when it's TRUE.
+  | 
+  | ``NoExtendedConfigSpace``
+  | 
+  | Root bridge supports 256-byte configuration space only when it's TRUE.
+  | Root bridge supports 4K-byte configuration space when it's FALSE.
+  | 
+  | ``AllocationAttributes``
+  | 
+  | Allocation attributes. Refer to EFI_PCI_HOST_BRIDGE_COMBINE_MEM_PMEM and EFI_PCI_HOST_BRIDGE_MEM64_DECODE used by GetAllocAttributes()
+  | in EFI_PCI_HOST_BRIDGE_RESOURCE_ALLOCATION_PROTOCOL defined in PI Specification.
+  | 
+  | ``BusBase``, ``BusLimit`` and ``BusTranslation``
+  | 
+  | Bus aperture for the root bridge.
+  | 
+  | ``IoBase``, ``IoLimit`` and ``IoTranslation``
+  | 
+  | IO aperture for the root bridge.
+  | 
+  | ``MemBase``, ``IoLimit`` and ``IoTranslation``
+  | 
+  | MMIO aperture below 4GB for the root bridge.
+  | 
+  | ``MemAbove4GBase``, ``MemAbove4GBaseLimit`` and ``MemAbove4GBaseTranslation``
+  | 
+  | MMIO aperture above 4GB for the root bridge.
+  | 
+  | ``PMemBase``, ``PMemLimit`` and ``PMemTranslation``
+  | 
+  | Prefetchable MMIO aperture below 4GB for the root bridge.
+  | 
+  | ``PMemAbove4GBase``, ``PMemAbove4GLimit`` and ``PMemAbove4GTranslation``
+  | 
+  | Prefetchable MMIO aperture above 4GB for the root bridge.
+  | 
+  | ``HID``
+  | 
+  | PnP hardware ID of the root bridge. This value must match the corresponding _HID in the ACPI name space.
+  | 
+  | ``UID``
+  | 
+  | Unique ID that is required by ACPI if two devices have the same _HID. This value must also match the corresponding _UID/_HID pair in the ACPI name space.
+
+``Resource``
+
+Contains one or more Resource Descriptor. The base and size of the resource can be
+known from ``Base`` and ``Length``. ``Owner`` can be used optionally to indicate the resource purpose.
+The meaning of ``Type`` can be seen from "Value of ResourceType in EFI_HOB_RESOURCE_DESCRIPTOR"
+https://github.com/tianocore/edk2/blob/master/MdePkg/Include/Pi/PiHob.h .
+The meaning of ``Attribute`` can be seen from "The following attributes are used to describe settings"
+https://github.com/tianocore/edk2/blob/master/MdePkg/Include/Pi/PiHob.h .
+
+``ResourceAllocation``
+
+Contains one or more Resource Allocation ranges. It records which ranges
+in the above ``Resource`` are used. The base and size of the used resource can be
+known from ``Base`` and ``Length``.
+``Type`` can be seen from EFI_MEMORY_TYPE at https://github.com/tianocore/edk2/blob/master/MdePkg/Include/Uefi/UefiMultiPhase.h
+
+The above two fields are only used to record the MMIO and IO resource and usage.
+For physical memory resource and usage, use the below field.
+
+``MemoryMap``
+
+Contains one or more physical memory ranges. The base and size of the memory range can be
+known from ``Base`` and ``NumberOfPages``.
+The meaning of ``Type`` can be seen from EFI_MEMORY_TYPE at https://github.com/tianocore/edk2/blob/master/MdePkg/Include/Uefi/UefiMultiPhase.h .
+The meaning of ``Attribute`` can be seen from "Memory cacheability attributes" at https://github.com/tianocore/edk2/blob/master/MdePkg/Include/Uefi/UefiSpec.h
+
+Hand-off state
+~~~~~~~~~~~~~~~~~~~
+
+The bootloader builds the CBOR encoded data containing platform specific information
+and passes the address of the the CBOR encoded data to the payload.
+
+The prototype of payload entry point is defined as::
+
+  typedef
+  VOID
+  (*PAYLOAD_ENTRY) (
+    UINTN  BootloaderParameter
+  );
+
+The compiler need use a proper attributes for this function to meet the calling convention below.
+For example, Microsoft Visual studio uses __cdecl for X64, while Linux GCC uses __attribute__((ms_abi)) for X64.
+
+BootloaderParameter is a pointer pointing to a CBOR encoded data which is a CBOR map containing information from above section.
+
 References and Links
 ----------------------
 
